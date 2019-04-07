@@ -26,8 +26,23 @@ lib <- read_xml("~/Documents/libpytunes/libpytunes/tests/Test Library.xml")
 playlists_root <- lib %>%
   xml_nodes(xpath = "//key[text() = 'Playlists']/following-sibling::array")
 
+tracks_root <- lib %>%
+  xml_nodes(xpath = "//key[text() = 'Tracks']/following-sibling::dict")
+
 # dict <- playlists_root %>%
 #   xml_child(search = 13)
+
+# Helper function: extract data out of meta$values
+expand_playlists <- function(x) {
+  if (length(x) == 0) {
+    NA_character_
+  } else if (length(x) == 1) {
+    unlist(x)
+  } else {
+    # TODO: if this isn't an integer, still grab it
+    map_chr(x, ~.$integer[[1]])
+  }
+}
 
 # Takes a single playlist dict as an XML node and returns a df
 playlist_node_to_df <- function(node) {
@@ -37,23 +52,12 @@ playlist_node_to_df <- function(node) {
     as_list()
 
   # Convert the node list to df
-  keys <- unlist(l[c(T, F)])
+  keys <- unlist(l[c(T, F)]) # Key/value pairs alternate
   values <- l[c(F, T)]
   meta <- tibble(
     keys = keys,
     values = values
   )
-
-  # Helper function: extract data out of meta$values
-  expand_playlists <- function(x) {
-    if (length(x) == 0) {
-      NA_character_
-    } else if (length(x) == 1) {
-      unlist(x)
-    } else {
-      map_chr(x, ~.$integer[[1]])
-    }
-  }
 
   # Convert the meta df into a properly formatted df
   meta %>%
@@ -72,15 +76,41 @@ node <- playlists_root %>%
 
 playlist_node_to_df(node)
 
-playlists_root %>%
+playlists <- playlists_root %>%
   xml_children() %>%
   map_df(playlist_node_to_df)
 
+# To unnest, replace any NULLs with NA or list()
 
 
 
+track_node_to_df <- function(node) {
+  # Convert the node to a list
+  l <- node %>%
+    xml_children() %>%
+    as_list()
 
+  # Convert the node list to df
+  keys <- unlist(l[c(T, F)]) # Key/value pairs alternate
+  values <- l[c(F, T)]
+  meta <- tibble(
+    keys = keys,
+    values = values
+  )
 
+  meta %>%
+    unnest() %>%
+    mutate(values = unlist(values)) %>%
+    spread(keys, values)
+}
+
+node <- tracks_root %>%
+  # TODO: the tracks root can be either a dict or an array
+  xml_child(search = 2)
+
+tracks <- tracks_root %>%
+  xml_find_all("dict") %>%
+  map_df(track_node_to_df)
 
 
 

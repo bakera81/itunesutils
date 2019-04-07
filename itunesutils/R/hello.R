@@ -20,7 +20,7 @@ library(tidyverse)
 library(purrr)
 library(tictoc)
 
-lib <- read_xml("~/Documents/itunesutils/data/Library.xml")
+# lib <- read_xml("~/Documents/itunesutils/data/Library.xml")
 lib <- read_xml("~/Documents/libpytunes/libpytunes/tests/Test Library.xml")
 
 playlists_root <- lib %>%
@@ -28,6 +28,65 @@ playlists_root <- lib %>%
 
 # dict <- playlists_root %>%
 #   xml_child(search = 13)
+
+# Takes a single playlist dict as an XML node and returns a df
+playlist_node_to_df <- function(node) {
+  # Convert the node to a list
+  l <- node %>%
+    xml_children() %>%
+    as_list()
+
+  # Convert the node list to df
+  keys <- unlist(l[c(T, F)])
+  values <- l[c(F, T)]
+  meta <- tibble(
+    keys = keys,
+    values = values
+  )
+
+  # Helper function: extract data out of meta$values
+  expand_playlists <- function(x) {
+    if (length(x) == 0) {
+      NA_character_
+    } else if (length(x) == 1) {
+      unlist(x)
+    } else {
+      map_chr(x, ~.$integer[[1]])
+    }
+  }
+
+  # Convert the meta df into a properly formatted df
+  meta %>%
+    mutate(values = map(values, expand_playlists)) %>%
+    # Unlist any keys that should not be lists
+    mutate(keys = paste0(keys, "..unlist=", lengths(values) <= 1)) %>% # Hack to identify which cols to unlist
+    spread(keys, values) %>%
+    # Need to do this step in wide format because each col must have a consistend data type
+    mutate_at(vars(ends_with("..unlist=TRUE")), unlist) %>%
+    # Undo our column renames
+    rename_all(~str_remove(., "\\.\\.unlist=.*$"))
+}
+
+node <- playlists_root %>%
+  xml_child(search = 6)
+
+playlist_node_to_df(node)
+
+playlists_root %>%
+  xml_children() %>%
+  map_df(playlist_node_to_df)
+
+
+
+
+
+
+
+
+
+
+
+
 
 # This works but is god-awful slow
 dict_to_list <- function(dict) {
@@ -59,79 +118,6 @@ dict_to_list <- function(dict) {
   playlist
   # })
 }
-
-# Experimental version of above
-# dict_to_list <- function(dict) {
-  # profvis::profvis({
-  playlist <- list()
-
-  dict <- playlists_root %>%
-    xml_child()
-
-  l <- dict %>%
-    xml_children() %>%
-    as_list()
-
-  keys <- unlist(l[c(T, F)])
-  values <- unlist(l[c(F, T)], recursive = F)
-  values_raw <- l[c(F, T)]
-
-
-  names(values) <- keys
-
-  # Create a meta df
-  meta <- tibble(
-    keys = keys,
-    values = values_raw,
-    lengths = lengths(values_raw)
-  )
-
-
-
-  expand_playlists <- function(x) {
-    # browser()
-    if (length(x) == 0) {
-      NA_character_
-    } else if (length(x) == 1) {
-      unlist(x)
-    } else {
-      # browser()
-      # expand_track_ids(x)
-      map_chr(x, fetch_int_value)
-    }
-  }
-
-  expand_track_ids <- function(x) {
-    # browser()
-    map_chr(x, fetch_int_value)
-    # map_chr(x, ~ .$dict$integer[[1]])
-  }
-
-  fetch_int_value <- function(x) {
-    # browser()
-    # x$integer[[1]]
-    x$integer[[1]]
-  }
-
-  playlist <- meta %>%
-    mutate(values = map(values, expand_playlists)) %>%
-    unnest()
-
-  playlist %>%
-    group_by(keys) %>%
-    nest(values) %>%
-    spread(keys, data) %>%
-    mutate_at(vars(-`Playlist Items`), ~.[[1]]$values)
-
-  meta %>%
-    mutate(v2 = map(values, ~expand_playlists(values, lengths)))
-
-  playlist <- list()
-  for (i in length(keys)) {
-    if ()
-    playlist[[keys[i]]] <- unlist(values_raw[i])
-  }
-
 
   for (node in dict %>% xml_children()) {
     if (node %>% xml_name() == "key") {

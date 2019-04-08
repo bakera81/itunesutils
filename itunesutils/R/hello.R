@@ -81,7 +81,13 @@ playlists <- playlists_root %>%
   map_df(playlist_node_to_df)
 
 # To unnest, replace any NULLs with NA or list()
-
+playlists_long <- playlists %>%
+  mutate(playlist_length = lengths(`Playlist Items`),
+         `Playlist Items` = ifelse(
+           playlist_length == 0,
+           NA,
+           `Playlist Items`)) %>%
+  unnest()
 
 
 track_node_to_df <- function(node) {
@@ -112,104 +118,3 @@ tracks <- tracks_root %>%
   xml_find_all("dict") %>%
   map_df(track_node_to_df)
 
-
-
-
-
-
-
-# This works but is god-awful slow
-dict_to_list <- function(dict) {
-  # profvis::profvis({
-  playlist <- list()
-  for (node in dict %>% xml_children()) {
-    if (node %>% xml_name() == "key") {
-      key <- node %>% xml_text()
-      next_sibling <- node %>% xml_node(xpath = "./following-sibling::*")
-      if (next_sibling %>% xml_name() == "array") {
-        value <- c()
-        for (n in next_sibling %>% xml_children()) {
-          # browser()
-          value <- c(value, dict_to_list(n))
-        }
-      } else {
-        value <- next_sibling %>% xml_text()
-      }
-      # print(paste0(key, ": ", value))
-      if (key == "Name" & value %in% c("Library", "Music")) {
-        return(NA)
-      }
-      if (key == "Name") {
-        print(paste0("Parsing ", value, "..."))
-      }
-      playlist[[key]] <- value
-    }
-  }
-  playlist
-  # })
-}
-
-  for (node in dict %>% xml_children()) {
-    if (node %>% xml_name() == "key") {
-      key <- node %>% xml_text()
-      next_sibling <- node %>% xml_node(xpath = "./following-sibling::*")
-      if (next_sibling %>% xml_name() == "array") {
-        value <- c()
-        for (n in next_sibling %>% xml_children()) {
-          # browser()
-          value <- c(value, dict_to_list(n))
-        }
-      } else {
-        value <- next_sibling %>% xml_text()
-      }
-      # print(paste0(key, ": ", value))
-      if (key == "Name" & value %in% c("Library", "Music")) {
-        return(NA)
-      }
-      if (key == "Name") {
-        print(paste0("Parsing ", value, "..."))
-      }
-      playlist[[key]] <- value
-    }
-  }
-  playlist
-  # })
-}
-
-
-
-
-dict_to_df <- function(dict) {
-  l <- dict_to_list(dict)
-
-  as_tibble(l) #%>%
-    # unnest() %>%
-    # nest(`Playlist Items`,
-    #      .key = `Playlist Items`)
-}
-
-p <- dict_to_list(dict)
-
-df <- dict_to_df(dict)
-
-for(i in 1:20) {
-  print(
-    playlists_root %>%
-    xml_child(search = i) %>%
-    xml_child(search = 2) %>%
-    xml_text()
-  )
-}
-
-dict <- playlists_root %>%
-  xml_child(search = 14)
-
-profvis::profvis({
-  dict_to_df(dict)
-})
-
-tic()
-playlists_df <- playlists_root %>%
-  xml_children() %>% head(2) %>%
-  map_dfr(dict_to_df)
-toc()

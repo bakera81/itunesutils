@@ -21,7 +21,7 @@ library(purrr)
 library(tictoc)
 
 # lib <- read_xml("~/Documents/itunesutils/data/Library.xml")
-lib <- read_xml("~/Documents/libpytunes/libpytunes/tests/Test Library.xml")
+lib <- read_xml("~/Documents/itunesutils/data/Test Library.xml")
 
 playlists_root <- lib %>%
   xml_nodes(xpath = "//key[text() = 'Playlists']/following-sibling::array")

@@ -4,8 +4,8 @@ from datetime import datetime
 from libpytunes import Library
 
 
-lib_path = "Library.xml"
-pickle_file = "itl.p"
+lib_path = "/Users/AB/Documents/itunesutils/data/2016-07-15/Library.xml"
+pickle_file = "/Users/AB/Documents/itunesutils/data/itl.p"
 
 # Parse XML
 itl_source = Library(lib_path)

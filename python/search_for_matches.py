@@ -1,5 +1,7 @@
 import pandas as pd
 import pickle
+import datetime
+import sys
 from nltk.metrics import edit_distance
 from siuba import *
 from siuba.dply.vector import row_number
@@ -8,11 +10,11 @@ needs_to_be_matched = pickle.load(open("../data/manual_cleaning/needs_to_by_join
 new_songs = pickle.load(open("../data/data2.p", "rb"))
 
 
-needs_to_be_matched = (
-    needs_to_be_matched
-    # Pick up where you left off
-    >> filter(_.persistent_id_y.isna())
-)
+# needs_to_be_matched = (
+#     needs_to_be_matched
+#     # Pick up where you left off
+#     >> filter(_.persistent_id_y.isna())
+# )
 
 # Clean columns used for search
 new_songs = new_songs >> mutate(
@@ -26,12 +28,21 @@ def calculate_distance(search):
         .apply(lambda x: edit_distance(x, search))
     )
 
-add_row_number = (
-    mutate(choice=row_number(_))
-    >> select(_.choice, _.artist, _.album, _.name, _.persistent_id)
+postprocess = (
+    # mutate(choice=row_number(_))
+    select(_.artist, _.album, _.name, _.persistent_id)
+    >> arrange(_.artist, _.album, _.name)
 )
 
+def results_from_artist_search(artist):
+    return (
+        new_songs
+        >> filter(_.artist == artist)
+        >> postprocess
+    )
+
 def results_from_edit_distance():
+    print("Searching using edit distance...")
     artist_distance = calculate_distance(song.artist.lower())
     name_distance = calculate_distance(song['name'].lower())
 
@@ -52,82 +63,132 @@ def results_from_edit_distance():
             _.artist_ntile == _.artist_ntile.cat.categories[0],
             _.name_ntile == _.name_ntile.cat.categories[0],
         )
-        >> add_row_number
+        >> postprocess
     )
 
     return results
 
-def display_results(results, current_song):
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+def display_results(results, current_song, i, length):
+    with pd.option_context(
+        'display.max_rows', None,
+        'display.max_columns', None,
+        'display.width', None):
         print(
             results >> select(-_.persistent_id)
         )
     return input("""
-        Find a match for:
+        ({0}/{1}) Find a match for:
 
-        song: {0}
-        artist: {1}
-        album: {2}
+        song: {2}
+        artist: {3}
+        album: {4}
 
 
-        > """.format(song['name'], song.artist, song.album))
-
-def match(i, resp):
-    import pdb; pdb.set_trace()
-    match = results.iloc[int(resp) - 1]
-    # Confirm this doesn't cause issues (difference between row number and index?)
-    # UPDATE: It looks like it is causing issues
-    # needs_to_be_matched.at[i, 'persistent_id_y'] = match.persistent_id
-    # needs_to_be_matched.insert(i, 'persistent_id_y', match.persistent_id)
-    needs_to_be_matched.loc[needs_to_be_matched.index[i], "persistent_id_y"] = match.persistent_id
-
-    needs_to_be_matched.to_csv("../data/manual_cleaning/test.csv")
-
-# Handle complete case
-
-for i in range(needs_to_be_matched.shape[0]):
-    # Search for matches
-    print("Searching...")
-    song = needs_to_be_matched.iloc[i]
-
-    # Search using contains
-    results = (
-        new_songs
-        >> filter(
-            _.artist_clean.str.contains(song.artist.lower()),
-            _.name_clean.str.contains(song['name'].lower()),
+        > """.format(
+            i,
+            length,
+            song['name'],
+            song.artist,
+            song.album
         )
-        >> add_row_number
     )
 
-    # Automatically match a song if 1 result
-    if results.shape[0] == 1:
-        print("""
-            Automatically matching:
+def write_out(df):
+    df.to_csv("../data/manual_cleaning/needs_to_by_joined_wip.csv")
+    pickle.dump(df, open("../data/manual_cleaning/needs_to_by_joined_wip.p", "wb"))
 
-            {0} => {1}
-        """.format(song['name'], results.iloc[0]['name']))
-        match(i, 1)
-        continue
+def match(i, resp):
+    # Use the Index rather than the row number
+    match = results.loc[int(resp), ]
+    needs_to_be_matched.loc[needs_to_be_matched.index[i], "persistent_id_y"] = match.persistent_id
+    write_out(needs_to_be_matched)
 
-    # If not, take edit_distance out for a spin
-    if results.shape[0] == 0:
-        results = results_from_edit_distance()
-
-    # Display results
-    resp = display_results(results, song)
-
-    if resp.lower() == 'c':
-        continue
-
-    if resp.lower() == 'm':
-        results = results_from_edit_distance()
-        resp = display_results(results, song)
-
-    # Future music: Include option to search for just the artist or just the song
-
-    # Update needs_to_be_matched
-    match(i, resp)
+def increment_reviewed_at(i):
+    needs_to_be_matched.loc[needs_to_be_matched.index[i], 'reviewed_at'] = datetime.datetime.now()
 
 
-    # Save file on exit
+nb_pending_review = (
+    needs_to_be_matched
+    >> filter(_.reviewed_at.isna())
+).shape[0]
+
+# Handle complete case
+if nb_pending_review == 0:
+    print("No work left to do. Congratulations are in order (hopefully).")
+    sys.exit()
+
+for i in range(needs_to_be_matched.shape[0]):
+    try:
+        # Search for matches
+        song = needs_to_be_matched.iloc[i]
+
+        # # Skip any song that has already been matched
+        # if song.persistent_id_y:
+        #     continue
+
+        # Skip any song that has been reviewed
+        if song.reviewed_at:
+            continue
+
+        # Search using contains
+        print("Searching using substrings...")
+        results = (
+            new_songs
+            >> filter(
+                _.artist_clean.str.contains(song.artist.lower(), regex=False),
+                _.name_clean.str.contains(song['name'].lower(), regex=False),
+            )
+            >> postprocess
+        )
+
+        # Automatically match a song if 1 result
+        if results.shape[0] == 1:
+            print("""
+                Automatically matching:
+
+                {0} => {1}
+            """.format(song['name'], results.iloc[0]['name']))
+            # import pdb; pdb.set_trace()
+            increment_reviewed_at(i)
+            match(i, results.index[0])
+            continue
+
+        # If not, take edit_distance out for a spin
+        if results.shape[0] == 0:
+            results = results_from_edit_distance()
+
+        # Display results
+        resp = display_results(results, song, i, nb_pending_review)
+
+        if resp.lower() == 'm':
+            results = results_from_edit_distance()
+            resp = display_results(results, song, i, nb_pending_review)
+
+        # Do an artist search
+        if resp.lower() == 'a':
+            results = results_from_artist_search(song.artist)
+            resp = display_results(results, song, i, nb_pending_review)
+
+        if resp.lower() == 'c':
+            increment_reviewed_at(i)
+            continue
+
+        # If error, make sure to return to it
+        if resp.lower() == 'e':
+            continue
+
+        # Future music: Include option to search for just the artist or just the song
+
+        # Update needs_to_be_matched
+        print("Great! You chose {}.".format(results.loc[int(resp), "name"]))
+        increment_reviewed_at(i)
+        match(i, resp)
+
+
+    # Save file on exit (or anything bad happening)
+    except Exception as e:
+        print(e)
+        print("\n\nSaving...")
+        write_out(needs_to_be_matched)
+        print("Goodbye for now, my friend.")
+        break

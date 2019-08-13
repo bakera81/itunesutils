@@ -19,7 +19,8 @@ new_songs = pickle.load(open("../data/data2.p", "rb"))
 # Clean columns used for search
 new_songs = new_songs >> mutate(
     artist_clean = _.artist.str.lower(),
-    name_clean = _.name.str.lower()
+    name_clean = _.name.str.lower(),
+    album_clean = _.album.str.lower(),
 )
 
 def calculate_distance(search):
@@ -34,10 +35,44 @@ postprocess = (
     >> arrange(_.artist, _.album, _.name)
 )
 
+def results_from_standard_search(strict=True):
+    print("Searching using substrings...")
+    if strict:
+        results = (
+            new_songs
+            >> filter(
+                _.artist_clean.str.contains(song.artist.lower(), regex=False),
+                _.name_clean.str.contains(song['name'].lower(), regex=False),
+            )
+        )
+    else:
+        results = (
+            new_songs
+            >> filter(
+                (_.artist_clean.str.contains(song.artist.lower(), regex=False)) |
+                (_.name_clean.str.contains(song['name'].lower(), regex=False)),
+            )
+        )
+    return results >> postprocess
+
+
 def results_from_artist_search(artist):
+    print("Searching using artist...")
     return (
         new_songs
         >> filter(_.artist == artist)
+        >> postprocess
+    )
+
+def results_from_custom_search(query):
+    print("Searching using custom query...")
+    return (
+        new_songs
+        >> filter(
+            (_.artist_clean.str.contains(query.lower())) |
+            (_.name_clean.str.contains(query.lower())) |
+            (_.album_clean.str.contains(query.lower()))
+        )
         >> postprocess
     )
 
@@ -68,7 +103,7 @@ def results_from_edit_distance():
 
     return results
 
-def display_results(results, current_song, i, length):
+def display_results(results, current_song, i, length=needs_to_be_matched.shape[0]):
     with pd.option_context(
         'display.max_rows', None,
         'display.max_columns', None,
@@ -112,6 +147,8 @@ nb_pending_review = (
     >> filter(_.reviewed_at.isna())
 ).shape[0]
 
+
+
 # Handle complete case
 if nb_pending_review == 0:
     print("No work left to do. Congratulations are in order (hopefully).")
@@ -131,15 +168,7 @@ for i in range(needs_to_be_matched.shape[0]):
             continue
 
         # Search using contains
-        print("Searching using substrings...")
-        results = (
-            new_songs
-            >> filter(
-                _.artist_clean.str.contains(song.artist.lower(), regex=False),
-                _.name_clean.str.contains(song['name'].lower(), regex=False),
-            )
-            >> postprocess
-        )
+        results = results_from_standard_search(strict=True)
 
         # Automatically match a song if 1 result
         if results.shape[0] == 1:
@@ -153,27 +182,44 @@ for i in range(needs_to_be_matched.shape[0]):
             match(i, results.index[0])
             continue
 
-        # If not, take edit_distance out for a spin
+        # If no results, loosen the filter
+        if results.shape[0] == 0:
+            results = results_from_standard_search(strict=False)
+
+        # If still no results, take edit_distance out for a spin
         if results.shape[0] == 0:
             results = results_from_edit_distance()
 
         # Display results
-        resp = display_results(results, song, i, nb_pending_review)
+        resp = display_results(results, song, i)
+
+        valid_cmds = ['m', 'a', 's', 'q', 'c', 'e']
+
+        # Search by default
+        if (resp.lower() not in valid_cmds) and (not resp.isnumeric()):
+            results = results_from_custom_search(resp)
+            resp = display_results(results, song, i)
 
         if resp.lower() == 'm':
             results = results_from_edit_distance()
-            resp = display_results(results, song, i, nb_pending_review)
+            resp = display_results(results, song, i)
 
         # Do an artist search
         if resp.lower() == 'a':
             results = results_from_artist_search(song.artist)
-            resp = display_results(results, song, i, nb_pending_review)
+            resp = display_results(results, song, i)
+
+        # Allow custom search
+        if resp.lower() == 's' or resp.lower() == 'q':
+            query = input("\t> ")
+            results = results_from_custom_search(query)
+            resp = display_results(results, song, i)
 
         if resp.lower() == 'c':
             increment_reviewed_at(i)
             continue
 
-        # If error, make sure to return to it
+        # If error, make leave entries blank to return to it
         if resp.lower() == 'e':
             continue
 
@@ -186,7 +232,8 @@ for i in range(needs_to_be_matched.shape[0]):
 
 
     # Save file on exit (or anything bad happening)
-    except Exception as e:
+    except:
+        e = sys.exc_info()[0]
         print(e)
         print("\n\nSaving...")
         write_out(needs_to_be_matched)

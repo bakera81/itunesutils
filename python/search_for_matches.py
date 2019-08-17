@@ -9,12 +9,14 @@ from siuba.dply.vector import row_number
 needs_to_be_matched = pickle.load(open("../data/manual_cleaning/needs_to_by_joined_wip.p", "rb"))
 new_songs = pickle.load(open("../data/data2.p", "rb"))
 
-
-# needs_to_be_matched = (
-#     needs_to_be_matched
-#     # Pick up where you left off
-#     >> filter(_.persistent_id_y.isna())
-# )
+# Remove video
+needs_to_be_matched = (
+    needs_to_be_matched
+    >> filter(
+        ~(_.kind.str.contains('video') | _.kind.str.contains('movie')),
+        _.genre != "Podcast"
+    )
+)
 
 # Clean columns used for search
 new_songs = new_songs >> mutate(
@@ -165,6 +167,12 @@ for i in range(needs_to_be_matched.shape[0]):
 
         # Skip any song that has been reviewed
         if song.reviewed_at:
+            continue
+
+        # Skip holiday songs
+        if song.genre == "Holiday":
+            print("Skipping holiday song: {}".format(song['name']))
+            increment_reviewed_at(i)
             continue
 
         # Search using contains

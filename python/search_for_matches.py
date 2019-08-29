@@ -175,6 +175,11 @@ for i in range(needs_to_be_matched.shape[0]):
             increment_reviewed_at(i)
             continue
 
+        # Skip songs with missing values (cheap shortcut to prevent errors)
+        if song.artist is None or song['name'] is None:
+            print("Skipping song with missing metadata: {0} by {1}".format(song['name'], song.artist))
+            continue
+
         # Search using contains
         results = results_from_standard_search(strict=True)
 
@@ -227,7 +232,7 @@ for i in range(needs_to_be_matched.shape[0]):
             increment_reviewed_at(i)
             continue
 
-        # If error, make leave entries blank to return to it
+        # If error, make sure to leave entries blank to return to it
         if resp.lower() == 'e':
             continue
 
@@ -241,7 +246,7 @@ for i in range(needs_to_be_matched.shape[0]):
 
     # Save file on exit (or anything bad happening)
     except:
-        e = sys.exc_info()[0]
+        e = sys.exc_info()#[0]
         print(e)
         print("\n\nSaving...")
         write_out(needs_to_be_matched)

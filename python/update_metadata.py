@@ -2,6 +2,7 @@
 import applescript
 import time
 from shutil import copy
+import numpy as np
 
 time = data2.date_added.dt.total_seconds
 # Set the system clock
@@ -47,6 +48,24 @@ script = applescript.AppleScript("""
     end updateDateAdded
 """)
 
+master_changes_df = pickle.load(open("../data/master_changes.p", "rb"))
+master_changes = master_changes.to_dict("records")
+
+test = {
+    'persistent_id': '2B77EB672D6EF1B4',
+    'genre': 'Electronic',
+    'play_count': 100,
+    'skip_count': 2,
+    'date_added': pd.Timestamp('2012-03-30 01:58:35'),
+    'artist': 'Flume',
+    'name': 'Vitality',
+    'album': 'Hi This Is Flume (Mixtape)'}
+}
+
+script.call("updatePlaycount", test['persistent_id'], test['play_count'])
+script.call("updateSkipcount", test['persistent_id'], test['skip_count'])
+script.call("updateGenre", test['persistent_id'], test['genre'])
+
 # To update the date:
 # 1. DONE Return the path of the file
 # 2. DONE Copy the file to ~/Desktop/itunesutils_tmp
@@ -56,8 +75,9 @@ script = applescript.AppleScript("""
 # 6. Turn back the clock
 # 7. DONE Add the song
 # 8. Add the song to all playlists, update metadata
+# NOTE: genre, skipcount, and playcount will need to be updated before the pID changes
 #### Note: pId does not remain the same. We will need to remap the pID
-helper_script = applescript.AppleScript("""
+helpers = applescript.AppleScript("""
     on getFilePath(pId)
     	tell application "iTunes"
     		set theTrack to (the first track whose persistent ID is pId)
@@ -91,14 +111,20 @@ helper_script = applescript.AppleScript("""
 
 
 # Steps 1-2
-path = date_script.call('getFilePath', '9650D59787154E54')
+path = helpers.call('getFilePath', '9650D59787154E54')
 copy(path, '/Users/AB/Desktop/itunesutils_tmp/')
 
 #print(script.call('updateGenre', '9650D59787154E54', 'yah bish'))
 
 # Step 3
-meta_raw = date_script.call('getMetaData', '9650D59787154E54')
+meta_raw = helpers.call('getMetaData', '9650D59787154E54')
 meta = {k.code.decode(): v for k,v in meta_raw.items()}
+
+# Step 5
+master_changes_df = pickle.load(open("../data/master_changes.p", "rb"))
+master_changes = master_changes.to_dict("records")
+# Note: beware of nans and NaTs
+# master_changes[-500]
 
 
 # tell application "iTunes"

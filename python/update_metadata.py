@@ -72,6 +72,22 @@ for track in master_changes:
         script.call("updateGenre", track['persistent_id'], track['genre'])
     # TODO: Logging
 
+for track in master_changes:
+    if track['date_added_secs'] is not None:
+        path = helpers.call('getFilePath', track['persistent_id'])
+        new_path = '/Users/AB/Desktop/itunesutils_tmp/'
+        copy(path, new_path)
+        # TODO: does deleting it this way remove the file from iTunes media?
+        # TODO: Do I need to purge the itunesutils_tmp folder?
+        metadata = helpers.call('getMetaData', track['persistent_id'])
+        # TODO
+        playlists = helpers.call('getPlaylists', track['persistent_id'])
+        helpers.call('deleteTrack', track['persistent_id'])
+        time.clock_settime(time.CLOCK_REALTIME, track['date_added_secs'])
+        helpers.call('addFile', new_path)
+        # TODO:
+        # get the new PID and update metadata
+
 # To update the date:
 # 1. DONE Return the path of the file
 # 2. DONE Copy the file to ~/Desktop/itunesutils_tmp
@@ -98,6 +114,7 @@ helpers = applescript.AppleScript("""
     on addFile(path)
         set theFile to POSIX file path
         tell application "iTunes" to add theFile
+        -- get the persistent ID of theFile
     end addFile
 
     on getMetaData(pId)
@@ -107,9 +124,13 @@ helpers = applescript.AppleScript("""
         end tell
     end getMetaData
 
+    on getPlaylists
+
+    end getPlaylists
+
     on deleteTrack(pId)
         tell application "iTunes"
-            delete (the first track whose persistent ID is "BE03E03F897BBBCE")
+            delete (the first track whose persistent ID is pId)
         end tell
     end deleteTrack
 """)

@@ -49,30 +49,36 @@ script = applescript.AppleScript("""
 """)
 
 master_changes_df = pickle.load(open("../data/master_changes.p", "rb"))
-master_changes = master_changes.to_dict("records")
+master_changes = master_changes_df.to_dict("records")
 
 test = {
-    'persistent_id': '2B77EB672D6EF1B4',
-    'genre': 'Electronic',
-    'play_count': 100,
-    'skip_count': 2,
-    'date_added': pd.Timestamp('2012-03-30 01:58:35'),
-    'artist': 'Flume',
-    'name': 'Vitality',
-    'album': 'Hi This Is Flume (Mixtape)'}
+    'persistent_id': 'B7255BC0871625AA',
+    'genre': 'Mashup',
+    'play_count': 97.0,
+    'skip_count': 9.0,
+    'date_added': pd.Timestamp('2011-08-17 17:04:00'),
+    'artist': 'The White Panda',
+    'name': 'Good For Girls',
+    'album': 'www.thewhitepanda.com',
+    'date_added_secs': 1313600640.0
 }
 
-script.call("updatePlaycount", test['persistent_id'], test['play_count'])
-script.call("updateSkipcount", test['persistent_id'], test['skip_count'])
-script.call("updateGenre", test['persistent_id'], test['genre'])
+for track in master_changes:
+    if track['play_count'] is not NaN:
+        script.call("updatePlaycount", track['persistent_id'], track['play_count'])
+    if track['skip_count'] is not NaN:
+        script.call("updateSkipcount", track['persistent_id'], track['skip_count'])
+    if track['genre'] is not NaN:
+        script.call("updateGenre", track['persistent_id'], track['genre'])
+    # TODO: Logging
 
 # To update the date:
 # 1. DONE Return the path of the file
 # 2. DONE Copy the file to ~/Desktop/itunesutils_tmp
 # 3. DONE Return all metadata for the track (pId, playlists, rating, loved)
 # 4. DONE Delete the song
-# 5. Get new metadata from spreadsheet
-# 6. Turn back the clock
+# 5. DONE Get new metadata from spreadsheet
+# 6. DONE Turn back the clock
 # 7. DONE Add the song
 # 8. Add the song to all playlists, update metadata
 # NOTE: genre, skipcount, and playcount will need to be updated before the pID changes
@@ -122,10 +128,14 @@ meta = {k.code.decode(): v for k,v in meta_raw.items()}
 
 # Step 5
 master_changes_df = pickle.load(open("../data/master_changes.p", "rb"))
-master_changes = master_changes.to_dict("records")
+master_changes = master_changes_df.to_dict("records")
 # Note: beware of nans and NaTs
 # master_changes[-500]
 
+# Step 6
+# Change it back to current time by checking "Set date and time automatically" system preferences.
+# May need sudo
+time.clock_settime(time.CLOCK_REALTIME, test['date_added_secs'])
 
 # tell application "iTunes"
 # 	set theTrack to item 1 of (get selection)

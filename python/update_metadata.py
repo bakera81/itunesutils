@@ -4,81 +4,16 @@ from shutil import copy
 import numpy as np
 import pickle
 
+from meta_cols import META_COLS
+
 with open("itunesutils.applescript") as f:
     script_file = f.read()
 
 SCRIPT = applescript.AppleScript(script_file)
 
 def get_metadata(pid):
-    meta_map = {
-        'ID  ': 'id',
-        'pidx': 'index',
-        'pnam': 'name',
-        'pPIS': 'persistent_id',
-        'pDID': 'database_id',
-        'pAdd': 'date_added',
-        'pTim': 'time',
-        'pDur': 'duration',
-        'pArt': 'artist',
-        'pAlA': 'album_artist',
-        'pCmp': 'composer',
-        'pAlb': 'album',
-        'pGen': 'genre',
-        'pBRt': 'bit_rate',
-        'pSRt': 'sample_rate',
-        'pTrC': 'track_count',
-        'pTrN': 'track_number',
-        'pDsC': 'disc_count',
-        'pDsN': 'disc_number',
-        'pSiz': 'size',
-        'pAdj': 'volume_adjustment',
-        'pYr ': 'year',
-        'pCmt': 'comment',
-        'pEQp': 'eq',
-        'pKnd': 'kind',
-        'pMdK': 'media_kind',
-        'pVdK': 'video_kind',
-        'asmo': 'modification_date',
-        'enbl': 'enabled',
-        'pStr': 'start',
-        'pStp': 'finish',
-        'pPlC': 'played_count',
-        'pSkC': 'skipped_count',
-        'pAnt': 'compilation',
-        'pRte': 'rating',
-        'pBPM': 'bpm',
-        'pGrp': 'grouping',
-        'pBkm': 'bookmarkable',
-        'pBkt': 'bookmark',
-        'pSfa': 'shufflable',
-        'pLyr': 'lyrics',
-        'pCat': 'category',
-        'pDes': 'description',
-        'pShw': 'show',
-        'pSeN': 'season_number',
-        'pEpD': 'episode_id',
-        'pEpN': 'episode_number',
-        'pUnp': 'unplayed',
-        'pSNm': 'sort_name',
-        'pSAl': 'sort_album',
-        'pSAr': 'sort_artist',
-        'pSCm': 'sort_composer',
-        'pSAA': 'sort_album_artist',
-        'pSSN': 'sort_show',
-        'pLov': 'loved',
-        'pHat': 'disliked',
-        'pALv': 'album_loved',
-        'pAHt': 'album_disliked',
-        'pClS': 'cloud_status',
-        'pWrk': 'work',
-        'pMNm': 'movement',
-        'pMvN': 'movement_number',
-        'pMvC': 'movement_count',
-        'pLoc': 'location',
-        'pcls': 'class'
-    }
     meta_raw = SCRIPT.call('getMetaData', pid)
-    meta = {meta_map[k.code.decode()]: v for k,v in meta_raw.items()}
+    meta = {META_COLS[k.code.decode()]: v for k,v in meta_raw.items()}
     meta = {}
     for k,v in meta_raw.items():
         val = v
@@ -90,6 +25,8 @@ def get_metadata(pid):
         meta[meta_map[k.code.decode()]] = val
 
     return meta
+
+
 if __name__ == "main":
     master_changes_df = pickle.load(open("../data/master_changes.p", "rb"))
     master_changes = master_changes_df.to_dict("records")

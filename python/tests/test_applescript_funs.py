@@ -13,12 +13,12 @@ def script():
     with open("itunesutils.applescript") as f:
         script_file = f.read()
     script = applescript.AppleScript(script_file)
-    return script
+    yield script
 
 
 @pytest.fixture
 def pid(script):
-    return script.call("addFile", "/Users/ab/Documents/itunesutils/python/tests/UFO_Takeoff-Sonidor-1604321570_1.mp3")
+    yield script.call("addFile", "/Users/ab/Documents/itunesutils/python/tests/UFO_Takeoff-Sonidor-1604321570_1.mp3")
 
 
 def test_get_metadata(script, pid):
@@ -60,11 +60,14 @@ def test_getFilePath(script, pid):
 def test_addFile():
     pass
 
-
+@pytest.mark.skip
 def test_getPlaylists(script, pid):
     playlists = script.call("getPlaylists", pid)
-
     assert isinstance(playlists, list) and (len(playlists) == 0)
+
+    script.call("addToPlaylists", pid, [playlist_id])
+    playlists = script.call("getPlaylists", pid)
+    assert playlists == [playlist_id]
 
 
 @pytest.mark.skip

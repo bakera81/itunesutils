@@ -1,12 +1,8 @@
 import applescript
 import pytest
+import os
 
 from update_metadata import get_metadata
-
-# TODO: in setup, add the UFO track and get it's pID
-# TODO: in teardown, remove the UFO track
-
-
 
 @pytest.fixture
 def script():
@@ -18,7 +14,9 @@ def script():
 
 @pytest.fixture
 def pid(script):
-    yield script.call("addFile", "/Users/ab/Documents/itunesutils/python/tests/UFO_Takeoff-Sonidor-1604321570_1.mp3")
+    pid = script.call("addFile", "/Users/ab/Repos/itunesutils/python/tests/UFO_Takeoff-Sonidor-1604321570_1.mp3")
+    yield pid
+    script.call("deleteTrack", pid)
 
 
 def test_get_metadata(script, pid):
@@ -53,7 +51,8 @@ def test_updateGenre(script, pid):
 def test_getFilePath(script, pid):
     path = script.call("getFilePath", pid)
 
-    assert ("iTunes/iTunes Music" in path)
+    assert os.path.exists(path)
+    assert ("iTunes" in path)
 
 
 @pytest.mark.skip

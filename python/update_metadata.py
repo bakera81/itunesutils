@@ -9,6 +9,7 @@ from meta_cols import META_COLS
 with open("itunesutils.applescript") as f:
     script_file = f.read()
 
+# TODO: use https://github.com/andrewp-as-is/applescript.py instead
 SCRIPT = applescript.AppleScript(script_file)
 
 def get_metadata(pid):
@@ -22,7 +23,7 @@ def get_metadata(pid):
         # TODO: use inheritance instead
         if "applescript.aecodecs" in str(type(val)):
             val = val.code.decode()
-        meta[meta_map[k.code.decode()]] = val
+        meta[META_COLS[k.code.decode()]] = val
 
     return meta
 
@@ -76,6 +77,7 @@ if __name__ == "main":
                     SCRIPT.call("addToPlaylists", new_pid, playlists)
             else:
                 # We are dealing with Apple Music
+                pass
 
 
     # To update the date:

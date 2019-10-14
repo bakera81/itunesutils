@@ -36,11 +36,11 @@ if __name__ == "main":
         # TODO: Make sure we handle NaNs
         # TODO: Logging
         if isinstance(track['play_count'], int):
-            SCRIPT.call("updatePlaycount", track['persistent_id'], track['play_count'])
+            SCRIPT.call("setPlaycount", track['persistent_id'], track['play_count'])
         if track['skip_count'] is not NaN:
-            SCRIPT.call("updateSkipcount", track['persistent_id'], track['skip_count'])
+            SCRIPT.call("setSkipcount", track['persistent_id'], track['skip_count'])
         if track['genre'] is not NaN:
-            SCRIPT.call("updateGenre", track['persistent_id'], track['genre'])
+            SCRIPT.call("setGenre", track['persistent_id'], track['genre'])
 
     for track in master_changes:
         # TODO: Make sure we handle missing values properly
@@ -60,20 +60,16 @@ if __name__ == "main":
 
                 # Transfer all metadata from the file just deleted to the new one
                 if metadata.get('genre'):
-                    SCRIPT.call("updateGenre", new_pid, metadata.get('genre'))
+                    SCRIPT.call("setGenre", new_pid, metadata.get('genre'))
                 if metadata.get('played_count'):
-                    SCRIPT.call("updatePlaycount", new_pid, metadata.get('played_count'))
+                    SCRIPT.call("setPlaycount", new_pid, metadata.get('played_count'))
                 if metadata.get('skipped_count'):
-                    SCRIPT.call("updateSkipcount", new_pid, metadata.get('skipped_count'))
+                    SCRIPT.call("setSkipcount", new_pid, metadata.get('skipped_count'))
                 if metadata.get('rating'):
-                    # TODO
-                    SCRIPT.call("updateRating", new_pid, metadata.get('rating'))
+                    SCRIPT.call("setRating", new_pid, metadata.get('rating'))
                 if metadata.get('loved'):
-                    # TODO
-                    SCRIPT.call("updateLoved", new_pid, metadata.get('loved'))
-
+                    SCRIPT.call("setLoved", new_pid, metadata.get('loved'))
                 if len(playlists) != 0:
-                    # TODO
                     SCRIPT.call("addToPlaylists", new_pid, playlists)
             else:
                 # We are dealing with Apple Music

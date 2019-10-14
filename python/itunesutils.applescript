@@ -46,32 +46,50 @@ end getPIdFromSelection
 
 -- SETTERS
 
-on updatePlaycount(pId, newPlaycount)
+on setPlaycount(pId, newPlaycount)
 	tell application "iTunes"
 		set theSong to (the first track whose persistent ID is pId)
 		tell theSong
 			set played count to newPlaycount
 		end tell
 	end tell
-end updatePlaycount
+end setPlaycount
 
-on updateSkipcount(pId, newSkipcount)
+on setSkipcount(pId, newSkipcount)
 	tell application "iTunes"
 		set theSong to (the first track whose persistent ID is pId)
 		tell theSong
 			set skipped count to newSkipcount
 		end tell
 	end tell
-end updateSkipcount
+end setSkipcount
 
-on updateGenre(pId, newGenre)
+on setGenre(pId, newGenre)
 	tell application "iTunes"
 		set theSong to (the first track whose persistent ID is pId)
 		tell theSong
 			set genre to newGenre
 		end tell
 	end tell
-end updateGenre
+end setGenre
+
+on setRating(pId, newRating)
+	tell application "iTunes"
+		set theSong to (the first track whose persistent ID is pId)
+		tell theSong
+			set rating to newRating
+		end tell
+	end tell
+end setRating
+
+on setLoved(pId, newLoved)
+	tell application "iTunes"
+		set theSong to (the first track whose persistent ID is pId)
+		tell theSong
+			set loved to newLoved
+		end tell
+	end tell
+end setLoved
 
 -- ACTIONS
 
@@ -83,6 +101,16 @@ on addFile(file_path)
 		get the persistent ID of theTrack
 	end tell
 end addFile
+
+on addToPlaylists(pId, thePlaylistIds)
+	tell application "iTunes"
+		set theSong to (the first track whose persistent ID is pId)
+		repeat with thePlaylistId in thePlaylistIds
+			set pList to (the first user playlist whose id is thePlaylistId)
+			duplicate theSong to pList
+		end repeat
+	end tell
+end addToPlaylists
 
 on deleteTrack(pId)
 	tell application "iTunes"
